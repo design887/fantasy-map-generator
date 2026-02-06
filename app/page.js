@@ -60,7 +60,7 @@ export default function App(){
   const[aiResult,setAiResult]=useState(null); // URL of generated image
   const[style,setStyle]=useState('fantasy');
   const[aiStrength,setAiStrength]=useState(.65);
-  const STY={fantasy:{n:'Fantasy',i:'🏰'},parchment:{n:'Parchment',i:'📜'},satellite:{n:'Satellite',i:'🛰️'},watercolor:{n:'Watercolor',i:'🖌️'},tolkien:{n:'Tolkien',i:'🧙'},scifi:{n:'Sci-Fi',i:'🚀'}};
+  const STY={fantasy:{n:'Fantasy',i:'🏰'},parchment:{n:'Parchment',i:'📜'},satellite:{n:'Relief Map',i:'🗻'},watercolor:{n:'Watercolor',i:'🖌️'},tolkien:{n:'Tolkien',i:'🧙'},scifi:{n:'Sci-Fi',i:'🚀'}};
   const pr=useRef({
     continents:1,landSize:.7,irregularity:.7,seaLevel:.2,
     elevation:.7,mountainHeight:.7,mountainSpread:.5,
