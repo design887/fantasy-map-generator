@@ -128,6 +128,9 @@ export default function App(){
   const lastPt=useRef(null),paintedRivers=useRef([]),currentRiverStroke=useRef(null);
   const initPaint=useCallback(()=>{paintType.current=new Int8Array(CW*CH);paintStr.current=new Float32Array(CW*CH)},[]);
   useEffect(()=>{initPaint()},[initPaint]);
+  // Clear paint when seed changes
+  const prevSeed=useRef(seed);
+  useEffect(()=>{if(seed!==prevSeed.current){prevSeed.current=seed;initPaint();paintedRivers.current=[];setUndoStack([]);const oc=overlayCv.current;if(oc)oc.getContext('2d').clearRect(0,0,CW,CH)}},[seed,initPaint]);
   const toCanvas=useCallback(e=>{const c=cv.current;if(!c)return null;const rect=c.getBoundingClientRect();return{x:Math.round((e.clientX-rect.left)*CW/rect.width),y:Math.round((e.clientY-rect.top)*CH/rect.height)}},[]);
   const drawOverlayCircle=useCallback((cx,cy)=>{const oc=overlayCv.current;if(!oc)return;const octx=oc.getContext('2d');const bType=BT.find(b2=>b2.id===brush);if(!bType)return;if(brush==='water'){const last=currentRiverStroke.current;if(last&&last.length>0){const prev=last[last.length-1];octx.strokeStyle='rgba(40,84,160,.8)';octx.lineWidth=2.5;octx.lineCap='round';octx.beginPath();octx.moveTo(prev.x,prev.y);octx.lineTo(cx,cy);octx.stroke()}else{octx.fillStyle='rgba(40,84,160,.8)';octx.beginPath();octx.arc(cx,cy,2,0,Math.PI*2);octx.fill()}return}const r=brushSize;const grad=octx.createRadialGradient(cx,cy,0,cx,cy,r);const co=bType.color;grad.addColorStop(0,co+(brush==='erase'?'80':'60'));grad.addColorStop(.7,co+(brush==='erase'?'40':'35'));grad.addColorStop(1,co+'00');if(brush==='erase'){octx.globalCompositeOperation='destination-out';octx.beginPath();octx.arc(cx,cy,r,0,Math.PI*2);octx.fillStyle=`rgba(0,0,0,${brushOpacity})`;octx.fill();octx.globalCompositeOperation='source-over'}else{octx.fillStyle=grad;octx.beginPath();octx.arc(cx,cy,r,0,Math.PI*2);octx.fill()}},[brush,brushSize,brushOpacity]);
   const writePaintData=useCallback((cx,cy)=>{if(!paintType.current)return;const W=CW,H=CH;const typeIdx=brush==='erase'?0:BT.findIndex(b2=>b2.id===brush)+1;const r=brushSize,r2=r*r;const x0=Math.max(0,cx-r),x1=Math.min(W-1,cx+r),y0=Math.max(0,cy-r),y1=Math.min(H-1,cy+r);for(let py=y0;py<=y1;py++){const dy=py-cy,dy2=dy*dy;for(let px=x0;px<=x1;px++){const dx=px-cx,d2=dx*dx+dy2;if(d2>r2)continue;const fo=1-Math.sqrt(d2)/r,s=fo*fo*brushOpacity,i=py*W+px;if(brush==='erase'){paintStr.current[i]*=(1-s);if(paintStr.current[i]<.01){paintType.current[i]=0;paintStr.current[i]=0}}else{if(paintType.current[i]===typeIdx)paintStr.current[i]=Math.min(1,paintStr.current[i]+s*.3);else if(s>paintStr.current[i]*.5){paintType.current[i]=typeIdx;paintStr.current[i]=Math.min(1,s)}}}}},[brush,brushSize,brushOpacity]);
@@ -457,8 +460,17 @@ export default function App(){
 
     // ═══ Paint overlay ═══
     const pt=paintType.current,ps=paintStr.current;
-    if(pt&&ps)for(let i=0;i<W*H;i++){if(pt[i]===0||ps[i]<.01)continue;const s=ps[i];
-      switch(pt[i]){case 1:moist[i]=moist[i]*(1-s)+.75*s;temp[i]=temp[i]*(1-s*.3)+.45*s*.3;break;case 2:moist[i]=moist[i]*(1-s)+.08*s;temp[i]=temp[i]*(1-s*.5)+.8*s*.5;break;case 3:temp[i]=temp[i]*(1-s)+.05*s;if(el[i]>=sea)el[i]+=s*.15;break;case 4:if(el[i]>=sea){el[i]+=s*.5;mt[i]+=s*.3}break;case 5:moist[i]=Math.min(1,moist[i]+s*.3);break;case 6:moist[i]=moist[i]*(1-s)+.4*s;temp[i]=temp[i]*(1-s*.3)+.5*s*.3;break;case 7:temp[i]=temp[i]*(1-s)+.12*s;moist[i]=moist[i]*(1-s*.4)+.25*s*.4;break;case 8:el[i]=Math.max(el[i],sea+s*.3);break;case 9:el[i]=Math.min(el[i],sea*(1-s*.8));break}}
+    if(pt&&ps)for(let i=0;i<W*H;i++){if(pt[i]===0||ps[i]<.01)continue;const s=ps[i];const nx=i%W/W,ny=((i/W)|0)/H;
+      switch(pt[i]){case 1:moist[i]=moist[i]*(1-s)+.75*s;temp[i]=temp[i]*(1-s*.3)+.45*s*.3;break;case 2:moist[i]=moist[i]*(1-s)+.08*s;temp[i]=temp[i]*(1-s*.5)+.8*s*.5;break;case 3:temp[i]=temp[i]*(1-s)+.05*s;if(el[i]>=sea)el[i]+=s*.15;break;case 4:if(el[i]>=sea){el[i]+=s*.5;mt[i]+=s*.3}break;case 5:moist[i]=Math.min(1,moist[i]+s*.3);break;case 6:moist[i]=moist[i]*(1-s)+.4*s;temp[i]=temp[i]*(1-s*.3)+.5*s*.3;break;case 7:temp[i]=temp[i]*(1-s)+.12*s;moist[i]=moist[i]*(1-s*.4)+.25*s*.4;break;
+        case 8:{// Land — sample terrain noise for natural elevation
+          const tn=ns[5].fbm(nx*5,ny*5,4)*.16+ns[6].fbm(nx*12,ny*12,3)*.09+ns[2].fbm(nx*25,ny*25,2)*.05+ns[3].fbm(nx*50,ny*50,2)*.025;
+          const landEl=sea+.02+Math.abs(tn)*.4*P.elevation*P.elevation*3;
+          el[i]=el[i]*(1-s)+landEl*s;
+          if(el[i]<sea+.005)el[i]=sea+.005;
+          break;}
+        case 9:{// Erode — sink to ocean
+          el[i]=el[i]*(1-s)+(sea*.3)*s;mt[i]*=(1-s);
+          break;}}}
 
     // ═══ Rivers ═══
     const fEl=new Float32Array(el);
