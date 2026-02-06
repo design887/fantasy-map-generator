@@ -48,6 +48,8 @@ const BT=[
   {id:'water',label:'River',icon:'🌊',color:'#2854a0'},
   {id:'grassland',label:'Grass',icon:'🌿',color:'#5a8a3c'},
   {id:'tundra',label:'Tundra',icon:'🧊',color:'#8a9088'},
+  {id:'land',label:'Land',icon:'🏝️',color:'#6a8a45'},
+  {id:'erode',label:'Erode',icon:'🕳️',color:'#1a2a40'},
   {id:'erase',label:'Erase',icon:'🧹',color:'#555'},
 ];
 
@@ -456,7 +458,7 @@ export default function App(){
     // ═══ Paint overlay ═══
     const pt=paintType.current,ps=paintStr.current;
     if(pt&&ps)for(let i=0;i<W*H;i++){if(pt[i]===0||ps[i]<.01)continue;const s=ps[i];
-      switch(pt[i]){case 1:moist[i]=moist[i]*(1-s)+.75*s;temp[i]=temp[i]*(1-s*.3)+.45*s*.3;break;case 2:moist[i]=moist[i]*(1-s)+.08*s;temp[i]=temp[i]*(1-s*.5)+.8*s*.5;break;case 3:temp[i]=temp[i]*(1-s)+.05*s;if(el[i]>=sea)el[i]+=s*.15;break;case 4:if(el[i]>=sea){el[i]+=s*.5;mt[i]+=s*.3}break;case 5:moist[i]=Math.min(1,moist[i]+s*.3);break;case 6:moist[i]=moist[i]*(1-s)+.4*s;temp[i]=temp[i]*(1-s*.3)+.5*s*.3;break;case 7:temp[i]=temp[i]*(1-s)+.12*s;moist[i]=moist[i]*(1-s*.4)+.25*s*.4;break}}
+      switch(pt[i]){case 1:moist[i]=moist[i]*(1-s)+.75*s;temp[i]=temp[i]*(1-s*.3)+.45*s*.3;break;case 2:moist[i]=moist[i]*(1-s)+.08*s;temp[i]=temp[i]*(1-s*.5)+.8*s*.5;break;case 3:temp[i]=temp[i]*(1-s)+.05*s;if(el[i]>=sea)el[i]+=s*.15;break;case 4:if(el[i]>=sea){el[i]+=s*.5;mt[i]+=s*.3}break;case 5:moist[i]=Math.min(1,moist[i]+s*.3);break;case 6:moist[i]=moist[i]*(1-s)+.4*s;temp[i]=temp[i]*(1-s*.3)+.5*s*.3;break;case 7:temp[i]=temp[i]*(1-s)+.12*s;moist[i]=moist[i]*(1-s*.4)+.25*s*.4;break;case 8:el[i]=Math.max(el[i],sea+s*.3);break;case 9:el[i]=Math.min(el[i],sea*(1-s*.8));break}}
 
     // ═══ Rivers ═══
     const fEl=new Float32Array(el);
