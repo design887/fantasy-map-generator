@@ -420,6 +420,20 @@ export default function App(){
       }
     }
 
+    // ═══ Terrain paint (Land/Erode) — BEFORE coast distance so new land integrates fully ═══
+    const pt=paintType.current,ps=paintStr.current;
+    if(pt&&ps)for(let i=0;i<W*H;i++){
+      if(ps[i]<.01)continue;const s=ps[i],nx=i%W/W,ny=((i/W)|0)/H;
+      if(pt[i]===8){// Land
+        const tn=ns[5].fbm(nx*5,ny*5,4)*.16+ns[6].fbm(nx*12,ny*12,3)*.09+ns[2].fbm(nx*25,ny*25,2)*.05+ns[3].fbm(nx*50,ny*50,2)*.025;
+        const landEl=sea+.02+Math.abs(tn)*.4*P.elevation*P.elevation*3;
+        el[i]=el[i]*(1-s)+landEl*s;
+        if(el[i]<sea+.005)el[i]=sea+.005;
+      }else if(pt[i]===9){// Erode
+        el[i]=el[i]*(1-s)+(sea*.3)*s;mt[i]*=(1-s);
+      }
+    }
+
     // ═══ BFS coast distance ═══
     const cD=new Int16Array(W*H),oD=new Int16Array(W*H);cD.fill(-1);oD.fill(-1);
     const queue=[],oQueue=[];let qi2=0,oqi=0;const maxDist2=80;
@@ -458,19 +472,9 @@ export default function App(){
       moist[i]=Math.max(0,Math.min(1,m));
     }
 
-    // ═══ Paint overlay ═══
-    const pt=paintType.current,ps=paintStr.current;
-    if(pt&&ps)for(let i=0;i<W*H;i++){if(pt[i]===0||ps[i]<.01)continue;const s=ps[i];const nx=i%W/W,ny=((i/W)|0)/H;
-      switch(pt[i]){case 1:moist[i]=moist[i]*(1-s)+.75*s;temp[i]=temp[i]*(1-s*.3)+.45*s*.3;break;case 2:moist[i]=moist[i]*(1-s)+.08*s;temp[i]=temp[i]*(1-s*.5)+.8*s*.5;break;case 3:temp[i]=temp[i]*(1-s)+.05*s;if(el[i]>=sea)el[i]+=s*.15;break;case 4:if(el[i]>=sea){el[i]+=s*.5;mt[i]+=s*.3}break;case 5:moist[i]=Math.min(1,moist[i]+s*.3);break;case 6:moist[i]=moist[i]*(1-s)+.4*s;temp[i]=temp[i]*(1-s*.3)+.5*s*.3;break;case 7:temp[i]=temp[i]*(1-s)+.12*s;moist[i]=moist[i]*(1-s*.4)+.25*s*.4;break;
-        case 8:{// Land — sample terrain noise for natural elevation
-          const tn=ns[5].fbm(nx*5,ny*5,4)*.16+ns[6].fbm(nx*12,ny*12,3)*.09+ns[2].fbm(nx*25,ny*25,2)*.05+ns[3].fbm(nx*50,ny*50,2)*.025;
-          const landEl=sea+.02+Math.abs(tn)*.4*P.elevation*P.elevation*3;
-          el[i]=el[i]*(1-s)+landEl*s;
-          if(el[i]<sea+.005)el[i]=sea+.005;
-          break;}
-        case 9:{// Erode — sink to ocean
-          el[i]=el[i]*(1-s)+(sea*.3)*s;mt[i]*=(1-s);
-          break;}}}
+    // ═══ Paint overlay — biome brushes (after temp/moisture) ═══
+    if(pt&&ps)for(let i=0;i<W*H;i++){if(pt[i]===0||pt[i]>=8||ps[i]<.01)continue;const s=ps[i];
+      switch(pt[i]){case 1:moist[i]=moist[i]*(1-s)+.75*s;temp[i]=temp[i]*(1-s*.3)+.45*s*.3;break;case 2:moist[i]=moist[i]*(1-s)+.08*s;temp[i]=temp[i]*(1-s*.5)+.8*s*.5;break;case 3:temp[i]=temp[i]*(1-s)+.05*s;if(el[i]>=sea)el[i]+=s*.15;break;case 4:if(el[i]>=sea){el[i]+=s*.5;mt[i]+=s*.3}break;case 5:moist[i]=Math.min(1,moist[i]+s*.3);break;case 6:moist[i]=moist[i]*(1-s)+.4*s;temp[i]=temp[i]*(1-s*.3)+.5*s*.3;break;case 7:temp[i]=temp[i]*(1-s)+.12*s;moist[i]=moist[i]*(1-s*.4)+.25*s*.4;break}}
 
     // ═══ Rivers ═══
     const fEl=new Float32Array(el);
