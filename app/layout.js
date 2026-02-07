@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "Fantasy Map Generator",
-  description: "Procedural fantasy map generator with AI enhancement",
+  title: 'Fantasy Map Generator',
+  description: 'Procedural fantasy map generator with AI enhancement',
 };
 
 export default function RootLayout({ children }) {

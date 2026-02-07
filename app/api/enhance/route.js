@@ -2,38 +2,30 @@ export const maxDuration = 60;
 
 export async function POST(req) {
   try {
-    const { image, prompt, style, strength } = await req.json();
-
-    if (!image) {
-      return Response.json({ error: "No image provided" }, { status: 400 });
-    }
+    const { image, style, strength } = await req.json();
+    if (!image) return Response.json({ error: "No image provided" }, { status: 400 });
 
     const apiToken = req.headers.get("x-replicate-token");
-    if (!apiToken) {
-      return Response.json({ error: "No API token provided" }, { status: 401 });
-    }
+    if (!apiToken) return Response.json({ error: "No API token provided" }, { status: 401 });
 
     const stylePrompts = {
-      fantasy: "highly detailed medieval fantasy map, hand-drawn cartography style, parchment texture, ornate compass rose, mountain illustrations, forest icons, old world cartography, detailed coastlines, ink drawn, Tolkien-style map illustration",
-      parchment: "ancient hand-drawn map on aged parchment paper, sepia toned, ink illustrations, medieval cartography, weathered paper texture, calligraphy labels, vintage map style, antique atlas illustration",
-      satellite: "shaded relief map, raised relief cartography, hypsometric tinting, dramatic hillshade with deep shadows, embossed 3D terrain, green forested lowlands, flat sandy desert plains in arid regions, brown rocky highlands, white snow-capped peaks, varied terrain with mountains valleys plateaus and deserts, beautiful teal-blue ocean with subtle depth gradient, lighter shallow coastal waters, deep ocean texture, fine terrain detail, matte topographic map, physical geography, cartographic art print, museum quality",
-      watercolor: "beautiful watercolor painted fantasy map, soft washes of color, artistic cartography, hand-painted terrain, loose brushstrokes, artistic map illustration, painted coastlines, watercolor landscape map",
-      tolkien: "detailed Tolkien-style fantasy map, Lord of the Rings cartography style, hand-drawn mountains and forests, elegant calligraphy, ink on parchment, Middle-earth map style, Christopher Tolkien illustration style",
-      scifi: "futuristic sci-fi planetary survey map, holographic terrain display, neon grid overlay, cyberpunk cartography, digital topographic scan, alien world survey, advanced civilization mapping",
+      fantasy: "highly detailed medieval fantasy map, hand-drawn cartography style, parchment texture, ornate compass rose, mountain illustrations, forest icons, old world cartography, detailed coastlines, ink drawn, Tolkien-style map illustration, masterpiece, best quality",
+      parchment: "ancient hand-drawn map on aged parchment paper, sepia toned, ink illustrations, medieval cartography, weathered paper texture, calligraphy labels, vintage map style, antique atlas illustration, masterpiece, best quality",
+      satellite: "3D raised relief map, shaded relief cartography, dramatic hillshade, hypsometric tinting, green lowlands to brown highlands to white peaks, embossed terrain, topographic map, NASA earth observation, masterpiece, best quality",
+      watercolor: "beautiful watercolor painted fantasy map, soft washes of color, artistic cartography, hand-painted terrain, loose brushstrokes, artistic map illustration, painted coastlines, watercolor landscape map, masterpiece, best quality",
+      tolkien: "detailed Tolkien-style fantasy map, Lord of the Rings cartography style, hand-drawn mountains and forests, elegant calligraphy, ink on parchment, Middle-earth map style, Christopher Tolkien illustration style, masterpiece, best quality",
+      scifi: "futuristic sci-fi planetary survey map, holographic terrain display, neon grid overlay, cyberpunk cartography, digital topographic scan, alien world survey, advanced civilization mapping, masterpiece, best quality",
     };
 
-    const basePrompt = stylePrompts[style] || stylePrompts.fantasy;
-    const fullPrompt = prompt ? `${basePrompt}, ${prompt}` : basePrompt;
-    const negativePrompt = "blurry, low quality, text, watermark, logo, signature, jpeg artifacts, deformed, ugly, bad anatomy, human figures, people, buildings, modern elements, UI elements, buttons, screenshot";
+    const fullPrompt = stylePrompts[style] || stylePrompts.fantasy;
+    const negativePrompt = "blurry, low quality, text, watermark, logo, signature, jpeg artifacts, deformed, ugly, human figures, people, buildings, modern elements, UI elements, buttons, screenshot";
 
-    // Use predictions.create with explicit version hash for stability-ai/sdxl
-    // This works universally (official + non-official models)
-    const res = await fetch("https://api.replicate.com/v1/predictions", {
+    const response = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiToken}`,
         "Content-Type": "application/json",
-        "Prefer": "wait",  // Blocking mode — waits up to 60s for result
+        "Prefer": "wait=120",
       },
       body: JSON.stringify({
         version: "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
@@ -42,39 +34,31 @@ export async function POST(req) {
           prompt: fullPrompt,
           negative_prompt: negativePrompt,
           prompt_strength: strength || 0.65,
-          num_inference_steps: 35,
+          num_inference_steps: 25,
           guidance_scale: 7.5,
-          width: 1344,
-          height: 896,
+          width: 1024,
+          height: 680,
           scheduler: "K_EULER_ANCESTRAL",
-          refine: "expert_ensemble_refiner",
-          high_noise_frac: 0.8,
         },
       }),
     });
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || errData.error || `Replicate API returned ${res.status}`);
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `Replicate API error: ${response.status}`);
     }
 
-    const prediction = await res.json();
-
-    if (prediction.status === "succeeded" && prediction.output) {
+    const prediction = await response.json();
+    if (prediction.status === "succeeded") {
       const output = prediction.output;
-      const imageUrl = Array.isArray(output) ? output[output.length - 1] : output;
-      return Response.json({ status: "succeeded", output: imageUrl });
+      return Response.json({ status: "succeeded", output: Array.isArray(output) ? output[output.length - 1] : output });
     } else if (prediction.status === "failed") {
-      throw new Error(prediction.error || "Generation failed");
+      throw new Error(prediction.error || "Generation failed on Replicate");
     } else {
-      // Still processing — return prediction ID for polling
       return Response.json({ status: prediction.status, id: prediction.id });
     }
   } catch (err) {
     console.error("Replicate API error:", err);
-    return Response.json(
-      { error: err.message || "Failed to generate" },
-      { status: 500 }
-    );
+    return Response.json({ error: err.message || "Failed to generate" }, { status: 500 });
   }
 }
