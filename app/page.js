@@ -11,7 +11,7 @@ class PN {
 }
 function rng(s){return()=>{s=(s*9301+49297)%233280;return s/233280}}
 
-const CW=1800,CH=1200;
+const CW=2400,CH=1600;
 
 // ═══ Binary Heap for priority queue (fast flood-fill growth) ═══
 class MinHeap {
