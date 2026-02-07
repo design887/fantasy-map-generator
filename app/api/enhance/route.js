@@ -9,16 +9,16 @@ export async function POST(req) {
     if (!apiToken) return Response.json({ error: "No API token provided" }, { status: 401 });
 
     const stylePrompts = {
-      fantasy: "highly detailed medieval fantasy map, hand-drawn cartography style, parchment texture, ornate compass rose, mountain illustrations, forest icons, old world cartography, detailed coastlines, ink drawn, Tolkien-style map illustration, masterpiece, best quality",
-      parchment: "ancient hand-drawn map on aged parchment paper, sepia toned, ink illustrations, medieval cartography, weathered paper texture, calligraphy labels, vintage map style, antique atlas illustration, masterpiece, best quality",
-      satellite: "3D raised relief map, shaded relief cartography, dramatic hillshade, hypsometric tinting, green lowlands to brown highlands to white peaks, embossed terrain, topographic map, NASA earth observation, masterpiece, best quality",
-      watercolor: "beautiful watercolor painted fantasy map, soft washes of color, artistic cartography, hand-painted terrain, loose brushstrokes, artistic map illustration, painted coastlines, watercolor landscape map, masterpiece, best quality",
-      tolkien: "detailed Tolkien-style fantasy map, Lord of the Rings cartography style, hand-drawn mountains and forests, elegant calligraphy, ink on parchment, Middle-earth map style, Christopher Tolkien illustration style, masterpiece, best quality",
-      scifi: "futuristic sci-fi planetary survey map, holographic terrain display, neon grid overlay, cyberpunk cartography, digital topographic scan, alien world survey, advanced civilization mapping, masterpiece, best quality",
+      fantasy: "fantasy map, highly detailed hand-drawn cartography, 2.5D illustrated terrain, ink and watercolor on parchment, ornate compass rose, illustrated mountains and forests seen from above, detailed coastlines with shading, ocean waves, by Brian Froud, fantasy concept painting, Magic The Gathering art style, trending on artstation, sharp focus, masterpiece, best quality",
+      parchment: "fantasy map, ancient cartography on aged yellowed parchment paper, sepia and burnt umber ink, hand-drawn coastlines with crosshatching, medieval manuscript style, weathered paper texture with foxing and tea stains, antique atlas illustration, faded edges, old world exploration map, detailed terrain hatching, masterpiece, best quality",
+      satellite: "fantasy map, 3D raised relief terrain visualization, dramatic hillshade lighting from northwest, hypsometric tinting with green lowlands through brown highlands to snow-white peaks, embossed topographic surface, NASA Blue Marble earth observation style, continental shelf gradient in ocean, photorealistic terrain, sharp focus, masterpiece, best quality",
+      watercolor: "fantasy map, beautiful watercolor painting seen from above, soft color washes bleeding at edges, artistic cartography with loose expressive brushstrokes, hand-painted terrain in rich pigments, wet-on-wet technique, coastal areas with turquoise gradients, forest canopy in emerald greens, warm earth tones for highlands, artistic map illustration, masterpiece, best quality",
+      tolkien: "fantasy map, by JRR Tolkien and Christopher Tolkien, Lord of the Rings cartography, fine pen and ink illustration on cream parchment, delicate hand-drawn mountain ranges in profile, stippled forests, flowing rivers with fine linework, elegant serif lettering style, Middle-earth map aesthetic, Vatican Map Room, classic book endpaper illustration, sharp focus, masterpiece, best quality",
+      scifi: "fantasy map, futuristic planetary survey holographic display, topographic wireframe mesh overlay, neon cyan and magenta accent lines on dark background, digital terrain analysis scan, elevation contour data visualization, alien world geological survey, sci-fi HUD cartography interface, glowing terrain features, sharp focus, masterpiece, best quality",
     };
 
     const fullPrompt = stylePrompts[style] || stylePrompts.fantasy;
-    const negativePrompt = "blurry, low quality, text, watermark, logo, signature, jpeg artifacts, deformed, ugly, human figures, people, buildings, modern elements, UI elements, buttons, screenshot";
+    const negativePrompt = "blurry, low quality, jpeg artifacts, deformed, ugly, human figures, people, buildings, modern elements, UI elements, buttons, screenshot, text, words, letters, writing, labels, numbers, alphabet, signature, watermark, logo, font, typography";
 
     const response = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
