@@ -25,7 +25,6 @@ export async function POST(req) {
       headers: {
         "Authorization": `Bearer ${apiToken}`,
         "Content-Type": "application/json",
-        "Prefer": "wait=120",
       },
       body: JSON.stringify({
         version: "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",

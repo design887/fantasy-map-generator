@@ -175,18 +175,18 @@ export default function App(){
         if(ratio>.5)contPull*=Math.max(0,1-((ratio-.5)/.5)*.6);
       }
 
-      const pullStr=.7*(1-frag*.45);
+      const pullStr=.7*(1-frag*.3);
       let ln=.15+terrainNoise+contPull*pullStr;
 
-      const enL=ns[9].fbm(ny*3.5+1,nx*5,3)*.08;
-      const enR=ns[9].fbm(ny*3.5+11,nx*5+10,3)*.08;
-      const enT=ns[10].fbm(nx*3.5+2,ny*5,3)*.08;
-      const enB=ns[10].fbm(nx*3.5+12,ny*5+10,3)*.08;
+      const enL=ns[9].fbm(ny*3.5+1,nx*5,3)*.12;
+      const enR=ns[9].fbm(ny*3.5+11,nx*5+10,3)*.12;
+      const enT=ns[10].fbm(nx*3.5+2,ny*5,3)*.12;
+      const enB=ns[10].fbm(nx*3.5+12,ny*5+10,3)*.12;
       const eL=nx+enL,eR2=1-nx+enR,eT=ny+enT,eB=1-ny+enB;
       const edgeDist=Math.min(Math.min(eL,eR2),Math.min(eT,eB));
-      const ef=edgeDist<.01?0:edgeDist>.07?1:((edgeDist-.01)/(.06));
+      const ef=edgeDist<.02?0:edgeDist>.14?1:((edgeDist-.02)/(.12));
       const efS=ef*ef*(3-2*ef);
-      ln=ln*efS-.15*(1-efS);
+      ln=ln*efS-.2*(1-efS);
 
       if(ln>seaThresh){
         const above=(ln-seaThresh)/(1-seaThresh);
