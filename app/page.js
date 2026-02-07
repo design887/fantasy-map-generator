@@ -498,46 +498,83 @@ export default function App(){
     // ═══ Rendering ═══
     const snowThr=.15+(1-P.snowLine)*.3,rockThr=snowThr*.5;
     let maxEl=sea+.001;for(let i=0;i<W*H;i++)if(el[i]>maxEl)maxEl=el[i];
-    const hR=[[32,62,28],[42,78,35],[55,95,42],[72,115,55],[95,135,68],[125,152,88],[152,165,112],[175,178,138],[198,195,168],[222,218,202],[240,238,232]];
-    const aR2=[[138,98,55],[152,112,68],[168,130,82],[182,148,98],[195,165,115],[205,178,132],[212,190,152],[222,205,172],[232,218,195],[240,232,215],[245,242,235]];
-    const coldR=[[118,128,125],[132,142,135],[148,155,148],[162,168,160],[175,178,170],[188,192,185],[200,204,198],[215,218,212],[228,230,226],[238,240,238],[244,246,244]];
+    // Richer, more saturated color ramps
+    const hR=[[22,58,18],[32,75,25],[42,92,32],[58,112,42],[78,132,55],[105,148,72],[135,160,95],[162,172,118],[188,185,148],[212,208,185],[235,232,222]];
+    const aR2=[[142,88,42],[158,105,55],[172,122,68],[185,140,85],[196,158,102],[208,172,118],[218,185,138],[228,200,162],[236,215,185],[242,228,208],[248,240,228]];
+    const coldR=[[108,118,115],[122,132,125],[138,148,138],[152,158,150],[168,172,162],[182,185,178],[195,198,192],[210,212,208],[225,228,224],[236,238,236],[244,246,244]];
     const smpR=(ramp,lo,f)=>[ramp[lo][0]+(ramp[lo+1][0]-ramp[lo][0])*f,ramp[lo][1]+(ramp[lo+1][1]-ramp[lo][1])*f,ramp[lo][2]+(ramp[lo+1][2]-ramp[lo][2])*f];
     const RL=hR.length-1;
-    const lAz=315*Math.PI/180,lAlt=45*Math.PI/180,lx=Math.cos(lAlt)*Math.sin(lAz),ly=-Math.cos(lAlt)*Math.cos(lAz),lz=Math.sin(lAlt);
+    // Light from NW, steeper angle for more dramatic shadows
+    const lAz=315*Math.PI/180,lAlt=40*Math.PI/180,lx=Math.cos(lAlt)*Math.sin(lAz),ly=-Math.cos(lAlt)*Math.cos(lAz),lz=Math.sin(lAlt);
 
     for(let py=0;py<H;py++)for(let px=0;px<W;px++){
       const i=py*W+px,e=el[i],t=temp[i],m=moist[i],mh=mt[i],nx=px/W,ny=py/H;
       let r,g,b;
       if(e<sea){
-        r=20;g=28;b=56;
-        const od=oD[i];if(od<3){const cw=(1-od/3)*.12;r+=cw*18;g+=cw*22;b+=cw*15}
+        // Deeper, richer ocean
+        const od=oD[i];
+        const depth=Math.min(1,od/40);
+        r=18-depth*6; g=26-depth*4; b=52+depth*8;
+        // Coastal shelf — warm turquoise shallows
+        if(od<6){const cw=(1-od/6);r+=cw*28;g+=cw*38;b+=cw*22}
       }else{
-        const landE=Math.max(0,(e-sea)/(maxEl-sea)),eN=Math.min(1,Math.pow(landE,.5));
-        const hW=Math.max(0,Math.min(1,(m-.15)/.4)),aW=1-hW;
+        const landE=Math.max(0,(e-sea)/(maxEl-sea)),eN=Math.min(1,Math.pow(landE,.45));
+        const hW=Math.max(0,Math.min(1,(m-.12)/.35)),aW=1-hW;
         const coW=Math.max(0,Math.min(1,(.3-t)/.25)),hoW=Math.max(0,Math.min(1,(t-.65)/.2));
         const ti=eN*RL,lo=Math.min((ti|0),RL-1),f=ti-lo;
         const hc=smpR(hR,lo,f),ac=smpR(aR2,lo,f),cc=smpR(coldR,lo,f);
         let cr=hc[0]*hW+ac[0]*aW,cg=hc[1]*hW+ac[1]*aW,cb=hc[2]*hW+ac[2]*aW;
         if(coW>0){cr=cr*(1-coW)+cc[0]*coW;cg=cg*(1-coW)+cc[1]*coW;cb=cb*(1-coW)+cc[2]*coW}
-        if(hoW>0&&aW>.3){const hw=hoW*aW*.6;cr=cr*(1-hw)+cr*1.1*hw;cg=cg*(1-hw)+cg*.88*hw;cb=cb*(1-hw)+cb*.72*hw}
-        if(eN<.35){const lv=ns[5].fbm(nx*10,ny*10,2)*.12,lw=(1-eN/.35)*.6;cr+=lv*35*lw;cg+=lv*25*lw;cb+=lv*15*lw;
-          const dp=ns[10].n(nx*6,ny*6);if(dp>.1){const dpw=Math.min(1,(dp-.1)*2)*lw*.3;cr+=dpw*25;cg+=dpw*12;cb-=dpw*5}}
-        const cd=cD[i];if(cd<5){const bw=(1-cd/5)*.4;const bc=t>.55?[205,192,148]:t<.25?[168,165,158]:[192,182,148];cr=cr*(1-bw)+bc[0]*bw;cg=cg*(1-bw)+bc[1]*bw;cb=cb*(1-bw)+bc[2]*bw}
+        if(hoW>0&&aW>.3){const hw=hoW*aW*.7;cr=cr*(1-hw)+(cr*1.15)*hw;cg=cg*(1-hw)+(cg*.85)*hw;cb=cb*(1-hw)+(cb*.65)*hw}
+        // Lowland color variation — richer
+        if(eN<.35){const lv=ns[5].fbm(nx*10,ny*10,2)*.15,lw=(1-eN/.35)*.7;cr+=lv*40*lw;cg+=lv*30*lw;cb+=lv*12*lw;
+          const dp=ns[10].n(nx*6,ny*6);if(dp>.1){const dpw=Math.min(1,(dp-.1)*2)*lw*.35;cr+=dpw*30;cg+=dpw*15;cb-=dpw*8}}
+        // Beach
+        const cd=cD[i];if(cd<5){const bw=(1-cd/5)*.45;const bc=t>.55?[210,195,145]:t<.25?[170,168,158]:[195,185,148];cr=cr*(1-bw)+bc[0]*bw;cg=cg*(1-bw)+bc[1]*bw;cb=cb*(1-bw)+bc[2]*bw}
         const sm2=(v,lo2,hi)=>Math.max(0,Math.min(1,(v-lo2)/(hi-lo2)));
         const sEl=1.0-P.snowLine*.55,elSn=sm2(eN,sEl,sEl+.15),mtSn=mh>snowThr*.5?sm2(mh,snowThr*.7,snowThr*1.2):0,coSn=sm2(.2-t,0,.15)*sm2(eN,.5,.7)*P.snowLine;
         const snW=Math.min(1,Math.max(elSn,mtSn)+coSn),roW=sm2(mh,rockThr*.3,rockThr)*(1-snW*.7);
-        if(roW>0){const rn=ns[4].n(nx*50,ny*50)*.06+ns[2].n(nx*120,ny*120)*.03,rk=[138+rn*60,118+rn*50,94+rn*35],rw=roW*(1-snW);cr=cr*(1-rw)+rk[0]*rw;cg=cg*(1-rw)+rk[1]*rw;cb=cb*(1-rw)+rk[2]*rw}
-        if(snW>0){const sn=ns[3].n(nx*35,ny*35)*.04+ns[5].n(nx*90,ny*90)*.02;cr=cr*(1-snW)+(238+sn*20)*snW;cg=cg*(1-snW)+(240+sn*15)*snW;cb=cb*(1-snW)+(245+sn*10)*snW}
+        if(roW>0){const rn=ns[4].n(nx*50,ny*50)*.07+ns[2].n(nx*120,ny*120)*.035;const rk=[145+rn*55,122+rn*48,95+rn*32];const rw=roW*(1-snW);cr=cr*(1-rw)+rk[0]*rw;cg=cg*(1-rw)+rk[1]*rw;cb=cb*(1-rw)+rk[2]*rw}
+        if(snW>0){const sn=ns[3].n(nx*35,ny*35)*.04+ns[5].n(nx*90,ny*90)*.02;cr=cr*(1-snW)+(240+sn*18)*snW;cg=cg*(1-snW)+(242+sn*14)*snW;cb=cb*(1-snW)+(248+sn*8)*snW}
+
+        // ═══ Multi-scale hillshade — dramatic 3D relief ═══
+        // 1px neighbors (fine detail)
         const eL2=px>0?el[i-1]:e,eR3=px<W-1?el[i+1]:e,eU=py>0?el[i-W]:e,eD=py<H-1?el[i+W]:e;
-        let dzdx=(eR3-eL2),dzdy=(eD-eU);
-        if(px>2&&px<W-3&&py>2&&py<H-3){dzdx=dzdx*.5+(el[i+3]-el[i-3])/6;dzdy=dzdy*.5+(el[i+W*3]-el[i-W*3])/6}
-        const zS=6+P.elevation*25+P.mountainHeight*20;dzdx*=zS;dzdy*=zS;
-        const len=Math.sqrt(dzdx*dzdx+dzdy*dzdy+1);
-        let shade=Math.max(0,(-dzdx*lx-dzdy*ly+lz/len)/len);shade=.12+shade*.88;
-        shade+=ns[3].n(nx*120,ny*120)*.015+ns[4].n(nx*200,ny*200)*.008+ns[5].n(nx*350,ny*350)*.004;
-        shade=Math.max(.06,Math.min(1.18,shade));
-        r=cr*shade;g=cg*shade;b=cb*shade;
-        const cn=ns[0].n(nx*100,ny*100)*.012+ns[2].n(nx*180,ny*180)*.006;r+=cn*14;g+=cn*11;b+=cn*7;
+        let dzdx1=(eR3-eL2),dzdy1=(eD-eU);
+        // 3px neighbors (medium terrain)
+        let dzdx3=dzdx1,dzdy3=dzdy1;
+        if(px>2&&px<W-3&&py>2&&py<H-3){dzdx3=(el[i+3]-el[i-3])/3;dzdy3=(el[i+W*3]-el[i-W*3])/3}
+        // 6px neighbors (broad shape)
+        let dzdx6=dzdx1,dzdy6=dzdy1;
+        if(px>5&&px<W-6&&py>5&&py<H-6){dzdx6=(el[i+6]-el[i-6])/6;dzdy6=(el[i+W*6]-el[i-W*6])/6}
+        // Blend scales
+        const dzdx=dzdx1*.4+dzdx3*.35+dzdx6*.25;
+        const dzdy=dzdy1*.4+dzdy3*.35+dzdy6*.25;
+        const zS=8+P.elevation*35+P.mountainHeight*28;
+        const sx=dzdx*zS,sy=dzdy*zS;
+        const len=Math.sqrt(sx*sx+sy*sy+1);
+        const nDotL=(-sx*lx-sy*ly+lz)/len;
+        // Wider shade range: deeper shadows, brighter highlights
+        let shade=nDotL;
+        shade=shade*.55+.45; // remap: shade range ~[-.1,1] → ~[.4, 1.0]
+        // Boost contrast
+        shade=Math.pow(Math.max(.01,shade),0.85);
+        // Micro texture noise
+        shade+=ns[3].n(nx*150,ny*150)*.018+ns[4].n(nx*250,ny*250)*.01+ns[5].n(nx*400,ny*400)*.005;
+        shade=Math.max(.04,Math.min(1.25,shade));
+
+        // Apply shading with slight warm/cool tint for light/shadow
+        if(shade>1){
+          // Highlight — slight warm boost
+          const hi=shade-1;
+          r=cr+hi*40;g=cg+hi*35;b=cb+hi*25;
+        }else{
+          // Shadow — cool-tinted darken
+          const sh=shade;
+          r=cr*sh;g=cg*sh;b=cb*(sh*.95+.05);
+        }
+        // Color noise to break uniformity
+        const cn=ns[0].n(nx*100,ny*100)*.015+ns[2].n(nx*180,ny*180)*.008;r+=cn*16;g+=cn*12;b+=cn*8;
       }
       const q=i*4;im.data[q]=r<0?0:r>255?255:(r+.5)|0;im.data[q+1]=g<0?0:g>255?255:(g+.5)|0;im.data[q+2]=b<0?0:b>255?255:(b+.5)|0;im.data[q+3]=255;
     }
