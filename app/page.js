@@ -148,16 +148,15 @@ export default function App(){
         const lx=dx*ca+dy*sa,ly=(-dx*sa+dy*ca)*cp.stretch;
         let dd=Math.sqrt(lx*lx+ly*ly);
         const ang=Math.atan2(dy,dx);
-        // Boundary noise scales with fragmentation — more frag = rougher boundary
-        const bNoise=ns[6].fbm(ang*1.2+cp.nOfs,dd*6,3)*.06*(.3+irr*.7)
-          +ns[8].fbm(ang*2.5+cp.nOfs+20,dd*12,2)*.025*irr
-          +ns[0].n(ang*5+cp.nOfs+50,dd*20)*.01*irr;
-        dd+=bNoise*(1+frag*1.5); // frag amplifies boundary roughness
-        const radius=.5+P.landSize*.45;
-        const flatZone=radius*.85; // 85% of radius is guaranteed land
-        if(dd<flatZone)contPull=1;
-        else if(dd>radius)contPull=0;
-        else contPull=Math.pow(Math.max(0,1-(dd-flatZone)/(radius-flatZone)),1.2);
+        // Boundary noise for organic coastlines — NOT amplified by frag
+        dd+=ns[6].fbm(ang*1.2+cp.nOfs,dd*6,3)*.06*(.3+irr*.7);
+        dd+=ns[8].fbm(ang*2.5+cp.nOfs+20,dd*12,2)*.025*irr;
+        dd+=ns[0].n(ang*5+cp.nOfs+50,dd*20)*.01*irr;
+        // Clamp radius so continent fits within canvas (account for center offset + stretch)
+        const maxRadius=Math.min(.42, .5-Math.abs(cp.x-.5)-.06, (.5-Math.abs(cp.y-.5)-.06)/Math.max(.3,cp.stretch));
+        const radius=Math.min(.15+P.landSize*.35, maxRadius);
+        // Smooth falloff from 1 at center to 0 at radius
+        contPull=dd<radius?Math.pow(1-dd/radius,.3):0; // .3 exponent = very flat interior, sharp edge
       }else{
         const sz=Math.max(.14,(.55-nc*.03)*P.landSize);
         let bestDist=99,secondDist=99;
@@ -167,23 +166,22 @@ export default function App(){
           const lx=dx*ca+dy*sa,ly=(-dx*sa+dy*ca)*cp.stretch;
           let dd=Math.sqrt(lx*lx+ly*ly);
           const ang=Math.atan2(dy,dx);
-          const bN=ns[6].fbm(ang*1.5+cp.nOfs,dd*8,2)*.04*(.3+irr*.7);
-          dd+=bN*(1+frag*1.5);
+          dd+=ns[6].fbm(ang*1.5+cp.nOfs,dd*8,2)*.04*(.3+irr*.7);
           if(dd<bestDist){secondDist=bestDist;bestDist=dd}
           else if(dd<secondDist)secondDist=dd;
         }
-        const flatZone=sz*.85;
-        if(bestDist<flatZone)contPull=1;
-        else if(bestDist>sz)contPull=0;
-        else contPull=Math.pow(Math.max(0,1-(bestDist-flatZone)/(sz-flatZone)),1.2);
+        contPull=bestDist<sz?Math.pow(1-bestDist/sz,.3):0;
         const ratio=bestDist/(secondDist+.001);
         if(ratio>.5)contPull*=Math.max(0,1-((ratio-.5)/.5)*.6);
       }
 
-      // Pull strength: strong enough to guarantee land in interior
-      // frag only weakens the EDGE transition, not interior
-      const pullStr=.85*(1-frag*.15);
-      let ln=.15+terrainNoise+contPull*pullStr;
+      // Combine: noise amplitude scales with (1-contPull) so interior is solid
+      // frag controls how much noise affects the transition zone
+      // Interior (contPull≈1): noise is suppressed → guaranteed land
+      // Edge (contPull≈0): full noise → ocean
+      // Transition: frag controls noise strength → coastline complexity
+      const noiseScale=1-contPull*(1-frag*.7); // interior: noise*frag*.7, edge: noise*1
+      let ln=contPull*.9+terrainNoise*noiseScale*.5+.05;
 
       const enL=ns[9].fbm(ny*3.5+1,nx*5,3)*.12;
       const enR=ns[9].fbm(ny*3.5+11,nx*5+10,3)*.12;
