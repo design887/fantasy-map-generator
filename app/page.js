@@ -148,13 +148,16 @@ export default function App(){
         const lx=dx*ca+dy*sa,ly=(-dx*sa+dy*ca)*cp.stretch;
         let dd=Math.sqrt(lx*lx+ly*ly);
         const ang=Math.atan2(dy,dx);
-        dd+=ns[6].fbm(ang*1.2+cp.nOfs,dd*6,3)*.06*(.3+irr*.7);
-        dd+=ns[8].fbm(ang*2.5+cp.nOfs+20,dd*12,2)*.025*irr;
-        dd+=ns[0].n(ang*5+cp.nOfs+50,dd*20)*.01*irr;
+        // Boundary noise scales with fragmentation — more frag = rougher boundary
+        const bNoise=ns[6].fbm(ang*1.2+cp.nOfs,dd*6,3)*.06*(.3+irr*.7)
+          +ns[8].fbm(ang*2.5+cp.nOfs+20,dd*12,2)*.025*irr
+          +ns[0].n(ang*5+cp.nOfs+50,dd*20)*.01*irr;
+        dd+=bNoise*(1+frag*1.5); // frag amplifies boundary roughness
         const radius=.5+P.landSize*.45;
-        if(dd<radius*.75)contPull=1;
+        const flatZone=radius*.85; // 85% of radius is guaranteed land
+        if(dd<flatZone)contPull=1;
         else if(dd>radius)contPull=0;
-        else contPull=Math.pow(Math.max(0,1-(dd-radius*.75)/(radius*.25)),1.1);
+        else contPull=Math.pow(Math.max(0,1-(dd-flatZone)/(radius-flatZone)),1.2);
       }else{
         const sz=Math.max(.14,(.55-nc*.03)*P.landSize);
         let bestDist=99,secondDist=99;
@@ -164,18 +167,22 @@ export default function App(){
           const lx=dx*ca+dy*sa,ly=(-dx*sa+dy*ca)*cp.stretch;
           let dd=Math.sqrt(lx*lx+ly*ly);
           const ang=Math.atan2(dy,dx);
-          dd+=ns[6].fbm(ang*1.5+cp.nOfs,dd*8,2)*.04*(.3+irr*.7);
+          const bN=ns[6].fbm(ang*1.5+cp.nOfs,dd*8,2)*.04*(.3+irr*.7);
+          dd+=bN*(1+frag*1.5);
           if(dd<bestDist){secondDist=bestDist;bestDist=dd}
           else if(dd<secondDist)secondDist=dd;
         }
-        if(bestDist<sz*.75)contPull=1;
+        const flatZone=sz*.85;
+        if(bestDist<flatZone)contPull=1;
         else if(bestDist>sz)contPull=0;
-        else contPull=Math.pow(Math.max(0,1-(bestDist-sz*.75)/(sz*.25)),1.1);
+        else contPull=Math.pow(Math.max(0,1-(bestDist-flatZone)/(sz-flatZone)),1.2);
         const ratio=bestDist/(secondDist+.001);
         if(ratio>.5)contPull*=Math.max(0,1-((ratio-.5)/.5)*.6);
       }
 
-      const pullStr=.7*(1-frag*.3);
+      // Pull strength: strong enough to guarantee land in interior
+      // frag only weakens the EDGE transition, not interior
+      const pullStr=.85*(1-frag*.15);
       let ln=.15+terrainNoise+contPull*pullStr;
 
       const enL=ns[9].fbm(ny*3.5+1,nx*5,3)*.12;
