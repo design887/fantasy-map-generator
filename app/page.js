@@ -339,11 +339,13 @@ export default function App(){
 
         // Add micro-noise at coastline for organic full-res edge
         const nx=px/W, ny=py/H;
-        const coastNoise=ns[7].fbm(nx*20,ny*20,3)*.15*irr
-                        +ns[8].fbm(nx*40,ny*40,2)*.06*irr
-                        +ns[9].n(nx*80,ny*80)*.03*irr;
+        const coastNoise=ns[7].fbm(nx*20,ny*20,3)*.12*irr
+                        +ns[8].fbm(nx*40,ny*40,2)*.05*irr
+                        +ns[9].n(nx*80,ny*80)*.025*irr;
 
-        isLand[i]=(landFrac+coastNoise>.5)?1:0;
+        // Smooth coastline: use continuous value, not hard threshold
+        const landVal=landFrac+coastNoise;
+        isLand[i]=landVal>.48?1:0;
 
         // Interpolate distance for elevation
         if(isLand[i]){
@@ -374,14 +376,16 @@ export default function App(){
 
           // Elevation: base from distance + noise detail
           const distFromCoast=1-landDist[i]; // 1 at seed, 0 at edge
-          const coastRamp=Math.min(1,distFromCoast*8)*.04; // thin ramp near coast
+          const coastRamp=Math.min(1,distFromCoast*6)*.06; // wider, taller ramp near coast
+          // Interior elevation dome — gradual rise toward center
+          const interiorRise=distFromCoast*distFromCoast*.08;
 
-          // Terrain detail noise
-          const d1=ns[5].fbm(wnx*5,wny*5,4)*.16;
-          const d2=ns[6].fbm(wnx*12,wny*12,3)*.09;
-          const d3=ns[2].fbm(wnx*25,wny*25,2)*.05;
-          const d4=ns[3].fbm(wnx*50,wny*50,2)*.025;
-          const d5=ns[4].n(wnx*100,wny*100)*.012;
+          // Terrain detail noise — boosted amplitudes
+          const d1=ns[5].fbm(wnx*5,wny*5,4)*.22;
+          const d2=ns[6].fbm(wnx*12,wny*12,3)*.12;
+          const d3=ns[2].fbm(wnx*25,wny*25,2)*.06;
+          const d4=ns[3].fbm(wnx*50,wny*50,2)*.03;
+          const d5=ns[4].n(wnx*100,wny*100)*.015;
           const detail=d1+d2+d3+d4+d5;
 
           // Valley carving
@@ -391,7 +395,7 @@ export default function App(){
           const valleyCut=Math.max(0,valley-.3)*.4;
 
           const elev=P.elevation*P.elevation*3;
-          el[i]=sea+(coastRamp+(detail-.15*valleyCut)*.9)*elev;
+          el[i]=sea+(coastRamp+interiorRise+(detail-.15*valleyCut))*elev;
 
           // Mountains
           const bm=ns[6].fbm(nx*2.5,ny*2.5,3);
@@ -413,8 +417,9 @@ export default function App(){
             mt[i]=mh; el[i]+=mh;
           }
         }else{
-          // Ocean: below sea level
-          el[i]=sea*.7;
+          // Ocean: below sea level — vary depth
+          const nx=px/W,ny=py/H;
+          el[i]=sea*(.5+ns[0].fbm(nx*3,ny*3,2)*.15);
         }
         el[i]=Math.max(0,el[i]);
       }
