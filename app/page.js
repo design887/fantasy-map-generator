@@ -113,7 +113,7 @@ export default function App(){
     const cRng=rng(seed+999);const cpts=[];
     if(nc===1){
       const rs=cRng();
-      cpts.push({x:.5+(cRng()-.5)*.12,y:.5+(cRng()-.5)*.12,ang:cRng()*Math.PI,stretch:.3+rs*.35,nOfs:cRng()*100});
+      cpts.push({x:.5+(cRng()-.5)*.12,y:.5+(cRng()-.5)*.12,ang:cRng()*Math.PI,stretch:.55+rs*.3,nOfs:cRng()*100});
     }else{
       for(let ci=0;ci<nc;ci++){let best=null,bestS=0;
         for(let a=0;a<40;a++){const px=.12+cRng()*.76,py=.12+cRng()*.76;let minD=99;
@@ -141,22 +141,34 @@ export default function App(){
       terrainNoise+=ns[5].fbm(wnx*28,wny*28,2)*.02*irr;
       terrainNoise+=ns[1].fbm(wnx*56,wny*56,2)*.009*irr;
 
-      let contPull=0;
+      // Continent mask: distance-based with boundary noise for organic shape
+      let contMask=0;
       if(nc===1){
         const cp=cpts[0],dx=nx-cp.x,dy=ny-cp.y;
         const ca=Math.cos(cp.ang),sa=Math.sin(cp.ang);
         const lx=dx*ca+dy*sa,ly=(-dx*sa+dy*ca)*cp.stretch;
         let dd=Math.sqrt(lx*lx+ly*ly);
         const ang=Math.atan2(dy,dx);
-        // Boundary noise for organic coastlines — NOT amplified by frag
         dd+=ns[6].fbm(ang*1.2+cp.nOfs,dd*6,3)*.06*(.3+irr*.7);
         dd+=ns[8].fbm(ang*2.5+cp.nOfs+20,dd*12,2)*.025*irr;
         dd+=ns[0].n(ang*5+cp.nOfs+50,dd*20)*.01*irr;
-        // Clamp radius so continent fits within canvas (account for center offset + stretch)
-        const maxRadius=Math.min(.42, .5-Math.abs(cp.x-.5)-.06, (.5-Math.abs(cp.y-.5)-.06)/Math.max(.3,cp.stretch));
-        const radius=Math.min(.15+P.landSize*.35, maxRadius);
-        // Smooth falloff from 1 at center to 0 at radius
-        contPull=dd<radius?Math.pow(1-dd/radius,.3):0; // .3 exponent = very flat interior, sharp edge
+        // Radius clamping: ellipse extends radius along angle, radius/stretch perpendicular
+        // Need both to fit within [0,1] with margin
+        const margin=.04;
+        const cxOfs=Math.abs(cp.x-.5), cyOfs=Math.abs(cp.y-.5);
+        // Along angle axis: project center offset onto angle
+        const projPar=Math.abs(cxOfs*ca+cyOfs*sa);
+        const projPerp=Math.abs(-cxOfs*sa+cyOfs*ca);
+        // Max radius so ellipse fits: r along axis, r/stretch perpendicular
+        const maxRPar=.5-projPar-margin;       // along angle axis
+        const maxRPerp=(.5-projPerp-margin)*cp.stretch; // perpendicular (r/stretch<limit → r<limit*stretch)
+        const maxR=Math.max(.12, Math.min(maxRPar, maxRPerp));
+        const radius=Math.min(.12+P.landSize*.36, maxR);
+        // Transition zone: inner 40% is flat, outer 60% tapers with noise shaping coastline
+        const flatR=radius*.4;
+        if(dd<flatR)contMask=1;
+        else if(dd>radius)contMask=0;
+        else contMask=Math.pow(Math.max(0,1-(dd-flatR)/(radius-flatR)),1.1);
       }else{
         const sz=Math.max(.14,(.55-nc*.03)*P.landSize);
         let bestDist=99,secondDist=99;
@@ -170,28 +182,29 @@ export default function App(){
           if(dd<bestDist){secondDist=bestDist;bestDist=dd}
           else if(dd<secondDist)secondDist=dd;
         }
-        contPull=bestDist<sz?Math.pow(1-bestDist/sz,.3):0;
+        const flatSz=sz*.4;
+        if(bestDist<flatSz)contMask=1;
+        else if(bestDist>sz)contMask=0;
+        else contMask=Math.pow(Math.max(0,1-(bestDist-flatSz)/(sz-flatSz)),1.1);
         const ratio=bestDist/(secondDist+.001);
-        if(ratio>.5)contPull*=Math.max(0,1-((ratio-.5)/.5)*.6);
+        if(ratio>.5)contMask*=Math.max(0,1-((ratio-.5)/.5)*.6);
       }
 
-      // Combine: noise amplitude scales with (1-contPull) so interior is solid
-      // frag controls how much noise affects the transition zone
-      // Interior (contPull≈1): noise is suppressed → guaranteed land
-      // Edge (contPull≈0): full noise → ocean
-      // Transition: frag controls noise strength → coastline complexity
-      const noiseScale=1-contPull*(1-frag*.7); // interior: noise*frag*.7, edge: noise*1
-      let ln=contPull*.9+terrainNoise*noiseScale*.5+.05;
+      // Combine: noise is MULTIPLICATIVE with mask — can never create land from nothing
+      // contMask=1 → ln≈0.9 → always land (interior guaranteed solid)
+      // contMask=0 → ln=0.02 → always ocean  
+      // Transition zone (0<contMask<1): noise shapes coastline
+      // Fragmentation controls noise amplitude in transition: more frag = rougher coast
+      const noiseFactor=1+terrainNoise*(.3+frag*1.0);
+      let ln=contMask*.9*Math.max(.08,noiseFactor)+.02;
 
-      const enL=ns[9].fbm(ny*3.5+1,nx*5,3)*.12;
-      const enR=ns[9].fbm(ny*3.5+11,nx*5+10,3)*.12;
-      const enT=ns[10].fbm(nx*3.5+2,ny*5,3)*.12;
-      const enB=ns[10].fbm(nx*3.5+12,ny*5+10,3)*.12;
-      const eL=nx+enL,eR2=1-nx+enR,eT=ny+enT,eB=1-ny+enB;
-      const edgeDist=Math.min(Math.min(eL,eR2),Math.min(eT,eB));
-      const ef=edgeDist<.02?0:edgeDist>.14?1:((edgeDist-.02)/(.12));
+      // Edge fade — noise-distorted for organic border
+      const edgeX=Math.min(nx,1-nx),edgeY=Math.min(ny,1-ny);
+      let edgeDist=Math.min(edgeX,edgeY);
+      edgeDist+=ns[9].fbm(ny*3+nx*2,nx*3+ny*2,2)*.04;
+      const ef=edgeDist<.02?0:edgeDist>.12?1:(edgeDist-.02)/.10;
       const efS=ef*ef*(3-2*ef);
-      ln=ln*efS-.2*(1-efS);
+      ln=ln*efS-.15*(1-efS);
 
       if(ln>seaThresh){
         const above=(ln-seaThresh)/(1-seaThresh);
